@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Calculadora Multifuncional</title>
+
+<style>
+body {
+    font-family: Arial, sans-serif;
+    background: linear-gradient(135deg, #ff8c00, #ffa94d);
+    text-align: center;
+    margin: 0;
+    padding: 20px;
+    color: #333;
+}
+
+h1 { color: white; }
+
+.menu button {
+    background: white;
+    border: none;
+    padding: 10px 15px;
+    margin: 5px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+.menu button:hover { background: #ffe0b3; }
+
+.section {
+    display: none;
+    background: white;
+    padding: 20px;
+    margin-top: 15px;
+    border-radius: 12px;
+    box-shadow: 0 0 15px rgba(0,0,0,0.2);
+}
+
+input, select {
+    padding: 8px;
+    margin: 10px;
+    border-radius: 5px;
+}
+
+button.calc {
+    background: #ff8c00;
+    color: white;
+    border: none;
+    padding: 10px;
+    border-radius: 8px;
+    cursor: pointer;
+}
+button.calc:hover { background: #e67600; }
+</style>
+</head>
+
+<body>
+
+<h1>🟠 Calculadora Multifuncional</h1>
+
+<div class="menu">
+    <button onclick="showSection('temp')">🌡️ Temperatura</button>
+    <button onclick="showSection('bmi')">⚖️ IMC</button>
+    <button onclick="showSection('cal')">🍔 Calorías</button>
+    <button onclick="showSection('extra')">➕ Extras</button>
+</div>
+
+<div id="temp" class="section">
+    <h2>Convertidor de temperatura</h2>
+    <input type="number" id="tempValue" placeholder="Valor">
+    <select id="tempScale">
+        <option value="C">Celsius</option>
+        <option value="F">Fahrenheit</option>
+        <option value="K">Kelvin</option>
+    </select>
+    <button class="calc" onclick="convertTemp()">Convertir</button>
+    <p id="tempResult"></p>
+</div>
+
+<div id="bmi" class="section">
+    <h2>Calculadora de IMC</h2>
+    <input type="number" id="weight" placeholder="Peso (kg)">
+    <input type="number" id="height" placeholder="Altura (cm)">
+    <button class="calc" onclick="calculateBMI()">Calcular</button>
+    <p id="bmiResult"></p>
+</div>
+
+<div id="cal" class="section">
+    <h2>Estimador de calorías</h2>
+    <select id="food">
+        <option value="265">Pan blanco</option>
+        <option value="130">Arroz cocido</option>
+        <option value="165">Pechuga de pollo</option>
+        <option value="52">Manzana</option>
+        <option value="89">Plátano</option>
+    </select>
+    <input type="number" id="grams" placeholder="Cantidad (g)">
+    <button class="calc" onclick="calculateCalories()">Calcular</button>
+    <p id="calResult"></p>
+</div>
+
+<div id="extra" class="section">
+    <h2>Funciones extra</h2>
+
+    <h3>💧 Agua diaria</h3>
+    <input type="number" id="pesoAgua" placeholder="Peso (kg)">
+    <button class="calc" onclick="calcularAgua()">Calcular</button>
+    <p id="aguaResult"></p>
+
+    <h3>🔢 Metros a km</h3>
+    <input type="number" id="metros" placeholder="Metros">
+    <button class="calc" onclick="convertirMetros()">Convertir</button>
+    <p id="metrosResult"></p>
+</div>
+
+<script>
+function showSection(id) {
+    document.querySelectorAll('.section').forEach(sec => sec.style.display = 'none');
+    document.getElementById(id).style.display = 'block';
+}
+
+function convertTemp() {
+    let v = parseFloat(document.getElementById("tempValue").value);
+    let s = document.getElementById("tempScale").value;
+
+    if (isNaN(v)) return;
+
+    let r = "";
+    if (s === "C") r = `F: ${(v*9/5+32).toFixed(2)} | K: ${(v+273.15).toFixed(2)}`;
+    if (s === "F") r = `C: ${((v-32)*5/9).toFixed(2)} | K: ${((v-32)*5/9+273.15).toFixed(2)}`;
+    if (s === "K") r = `C: ${(v-273.15).toFixed(2)} | F: ${((v-273.15)*9/5+32).toFixed(2)}`;
+
+    document.getElementById("tempResult").innerText = r;
+}
+
+function calculateBMI() {
+    let w = parseFloat(document.getElementById("weight").value);
+    let h = parseFloat(document.getElementById("height").value) / 100;
+
+    if (!w || !h) return;
+
+    let bmi = w / (h*h);
+
+    let cat = bmi < 18.5 ? "Bajo peso" :
+              bmi < 25 ? "Normal" :
+              bmi < 30 ? "Sobrepeso" : "Obesidad";
+
+    document.getElementById("bmiResult").innerText = `IMC: ${bmi.toFixed(2)} (${cat})`;
+}
+
+function calculateCalories() {
+    let kcal = document.getElementById("food").value;
+    let g = document.getElementById("grams").value;
+
+    if (!g) return;
+
+    let total = (kcal * g) / 100;
+    document.getElementById("calResult").innerText = `Calorías: ${total.toFixed(2)} kcal`;
+}
+
+function calcularAgua() {
+    let peso = document.getElementById("pesoAgua").value;
+    if (!peso) return;
+
+    let agua = peso * 35;
+    document.getElementById("aguaResult").innerText = `~ ${agua} ml/día`;
+}
+
+function convertirMetros() {
+    let m = document.getElementById("metros").value;
+    if (!m) return;
+
+    document.getElementById("metrosResult").innerText = `${m/1000} km`;
+}
+</script>
+
+</body>
+</html>
