@@ -1,0 +1,976 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Eco-Runner: El Ciclo del Tiempo</title>
+    <!-- Tailwind CSS para la interfaz y diseño del contenedor -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts para tipografías atractivas -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Outfit', sans-serif;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+        }
+        /* Estilos del canvas para mantener proporción ideal de 16:9 de forma responsiva */
+        #gameCanvas {
+            aspect-ratio: 16 / 9;
+            max-height: 80vh;
+            box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.15), 0 8px 10px -6px rgb(0 0 0 / 0.15);
+            border-radius: 1.5rem;
+        }
+    </style>
+</head>
+<body class="bg-slate-900 min-h-screen flex flex-col items-center justify-center p-4 overflow-hidden text-white select-none">
+
+    <!-- Contenedor Principal -->
+    <div class="w-full max-w-4xl flex flex-col items-center">
+        
+        <!-- Encabezado con título, foto de perfil e información general -->
+        <div class="w-full flex justify-between items-center mb-4 px-2">
+            <div class="flex items-center gap-3">
+                <!-- Circulito con la foto cargada desde el enlace web provisto -->
+                <div class="relative w-12 h-12 md:w-16 md:h-16 rounded-full overflow-hidden border-2 border-red-500 shadow-lg bg-slate-800 flex-shrink-0">
+                    <img src="https://i.postimg.cc/dVDN78pj/d41af472-0053-4afc-b81f-0ca455117072.jpg" alt="Foto de la Niña" class="w-full h-full object-cover">
+                </div>
+                <div>
+                    <h1 class="text-2xl md:text-3xl font-extrabold tracking-tight bg-gradient-to-r from-red-500 to-amber-500 bg-clip-text text-transparent">
+                        MARIO RUNNER
+                    </h1>
+                    <p class="text-xs text-slate-400">Salta con <span class="bg-slate-800 text-slate-300 px-1.5 py-0.5 rounded border border-slate-700">Espacio</span> o <span class="bg-slate-800 text-slate-300 px-1.5 py-0.5 rounded border border-slate-700">Toca la pantalla</span></p>
+                </div>
+            </div>
+            
+            <div class="flex gap-4">
+                <!-- Record (High Score) -->
+                <div class="text-right">
+                    <span class="text-xs text-slate-400 block uppercase font-semibold">Récord</span>
+                    <span id="bestScoreText" class="text-lg font-bold text-amber-400">0000</span>
+                </div>
+                <!-- Puntuación Actual -->
+                <div class="text-right bg-slate-800/80 backdrop-blur px-4 py-1.5 rounded-xl border border-slate-700">
+                    <span class="text-xs text-red-400 block uppercase font-semibold">Puntos</span>
+                    <span id="scoreText" class="text-2xl font-black text-white">0000</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Área de Juego (Canvas) y Overlays -->
+        <div class="relative w-full aspect-[16/9] bg-black rounded-3xl overflow-hidden">
+            <canvas id="gameCanvas" class="w-full h-full block bg-sky-300 transition-colors duration-1000"></canvas>
+            
+            <!-- Pantalla de Inicio / Game Over / Pausa -->
+            <div id="overlay" class="absolute inset-0 bg-slate-950/80 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center transition-opacity duration-300">
+                <div class="transform scale-95 animate-fade-in">
+                    <div id="statusBadge" class="inline-block mb-3 px-3 py-1 bg-red-500/20 text-red-400 rounded-full border border-red-500/30 text-xs font-semibold tracking-wider uppercase">
+                        ¡Super Mario al rescate!
+                    </div>
+                    
+                    <h2 id="overlayTitle" class="text-4xl md:text-5xl font-black mb-2 tracking-tight">
+                        EL CICLO DEL TIEMPO
+                    </h2>
+                    
+                    <p id="overlayMessage" class="text-sm md:text-base text-slate-300 max-w-md mx-auto mb-6">
+                        Ayuda a Mario a esquivar los obstáculos tecnológicos de la derecha. El día cambiará a noche, y la velocidad aumentará constantemente.
+                    </p>
+
+                    <!-- Estadísticas Rápidas en Game Over -->
+                    <div id="gameOverStats" class="hidden flex justify-center gap-6 mb-6">
+                        <div class="text-center">
+                            <p class="text-xs text-slate-400">Puntos Alcanzados</p>
+                            <p id="finalScore" class="text-2xl font-bold text-red-400">0</p>
+                        </div>
+                        <div class="text-center">
+                            <p class="text-xs text-slate-400">Fases Superadas</p>
+                            <p id="finalLevel" class="text-2xl font-bold text-amber-400">1</p>
+                        </div>
+                    </div>
+
+                    <button id="actionBtn" class="px-8 py-4 bg-gradient-to-r from-red-600 to-amber-600 hover:from-red-500 hover:to-amber-500 active:scale-95 transition-all text-white font-extrabold rounded-2xl shadow-lg shadow-red-500/20 text-lg w-full max-w-xs md:w-auto">
+                        EMPEZAR PARTIDA
+                    </button>
+                </div>
+            </div>
+
+            <!-- Alerta Flotante de Cambio de Fase / Dificultad -->
+            <div id="alertBanner" class="absolute top-4 left-1/2 -translate-x-1/2 bg-slate-900/90 border border-red-500/30 px-6 py-2.5 rounded-full pointer-events-none opacity-0 transform -translate-y-4 transition-all duration-500 flex items-center gap-2">
+                <span id="alertIcon" class="text-xl">☀️</span>
+                <span id="alertMessage" class="font-bold text-sm text-red-400">¡Dificultad Aumentada!</span>
+            </div>
+        </div>
+
+        <!-- Instrucciones en pantalla / footer -->
+        <div class="mt-4 text-center text-xs text-slate-500">
+            Cada 100 puntos se incrementa la dificultad • Cada 200 puntos cambia entre Día y Noche
+        </div>
+    </div>
+
+    <!-- Script de lógica de juego -->
+    <script>
+        // CONFIGURACIONES Y REFERENCIAS DOM
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const scoreText = document.getElementById('scoreText');
+        const bestScoreText = document.getElementById('bestScoreText');
+        const overlay = document.getElementById('overlay');
+        const statusBadge = document.getElementById('statusBadge');
+        const overlayTitle = document.getElementById('overlayTitle');
+        const overlayMessage = document.getElementById('overlayMessage');
+        const gameOverStats = document.getElementById('gameOverStats');
+        const finalScore = document.getElementById('finalScore');
+        const finalLevel = document.getElementById('finalLevel');
+        const actionBtn = document.getElementById('actionBtn');
+        const alertBanner = document.getElementById('alertBanner');
+        const alertIcon = document.getElementById('alertIcon');
+        const alertMessage = document.getElementById('alertMessage');
+
+        // Tamaño virtual interno del Canvas para físicas estables (16:9)
+        const VIEW_WIDTH = 960;
+        const VIEW_HEIGHT = 540;
+
+        // SISTEMA DE AUDIO (Web Audio API para no requerir archivos externos)
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        
+        function playSound(type) {
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            const now = audioCtx.currentTime;
+
+            if (type === 'jump') {
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(180, now);
+                osc.frequency.exponentialRampToValueAtTime(550, now + 0.16);
+                gain.gain.setValueAtTime(0.12, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.16);
+                osc.start(now);
+                osc.stop(now + 0.16);
+            } else if (type === 'levelup') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(330, now);
+                osc.frequency.setValueAtTime(392, now + 0.08);
+                osc.frequency.setValueAtTime(659, now + 0.16);
+                gain.gain.setValueAtTime(0.1, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+                osc.start(now);
+                osc.stop(now + 0.4);
+            } else if (type === 'hit') {
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(150, now);
+                osc.frequency.linearRampToValueAtTime(30, now + 0.35);
+                gain.gain.setValueAtTime(0.18, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.35);
+                osc.start(now);
+                osc.stop(now + 0.35);
+            }
+        }
+
+        // ESTADO GLOBAL DEL JUEGO
+        let gameState = 'START'; // 'START', 'PLAYING', 'GAMEOVER'
+        let score = 0;
+        let bestScore = localStorage.getItem('eco_runner_best') || 0;
+        bestScoreText.textContent = String(bestScore).padStart(4, '0');
+
+        let speedMultiplier = 1;
+        let currentCycle = 'DAY'; // 'DAY', 'NIGHT'
+        let nextCycleScore = 200;
+        let nextLevelScore = 100;
+        let animationFrameId = null;
+
+        // COLORES DEL CICLO DÍA/NOCHE (Interpolación dinámica)
+        const theme = {
+            sky: { r: 169, g: 222, b: 249 },      // Día: Azul claro pastel
+            ground: { r: 110, g: 211, b: 141 },   // Día: Verde vibrante
+            elements: '#2c3e50',
+            targetSky: { r: 169, g: 222, b: 249 },
+            targetGround: { r: 110, g: 211, b: 141 },
+            lerpFactor: 0.05
+        };
+
+        // PARTICULAS
+        let particles = [];
+        class Particle {
+            constructor(x, y, color, size, vx, vy) {
+                this.x = x;
+                this.y = y;
+                this.color = color;
+                this.size = size || Math.random() * 4 + 2;
+                this.vx = vx || (Math.random() - 0.5) * 4 - 2;
+                this.vy = vy || Math.random() * -3 - 1;
+                this.alpha = 1;
+                this.decay = Math.random() * 0.02 + 0.015;
+            }
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.alpha -= this.decay;
+            }
+            draw(ctx) {
+                ctx.save();
+                ctx.globalAlpha = this.alpha;
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+        }
+
+        // PERSONAJE (SUPER MARIO)
+        const runner = {
+            x: 100,
+            y: 380, // Suelo por defecto
+            width: 48,
+            height: 62,
+            vy: 0,
+            gravity: 0.62,
+            jumpStrength: -15,
+            isJumping: false,
+            runFrame: 0,
+            
+            update() {
+                // Físicas de gravedad
+                this.vy += this.gravity;
+                this.y += this.vy;
+
+                const groundY = VIEW_HEIGHT - 90 - this.height;
+                if (this.y >= groundY) {
+                    this.y = groundY;
+                    this.vy = 0;
+                    if (this.isJumping) {
+                        this.isJumping = false;
+                        // Partículas de aterrizaje
+                        for (let i = 0; i < 8; i++) {
+                            particles.push(new Particle(this.x + this.width / 2, this.y + this.height, '#ffffff', Math.random()*5+2));
+                        }
+                    }
+                }
+
+                // Animación de correr
+                if (!this.isJumping) {
+                    this.runFrame += 0.25 * speedMultiplier;
+                    // Polvo blanco de corrida
+                    if (Math.random() < 0.15) {
+                        particles.push(new Particle(this.x, this.y + this.height - 5, 'rgba(255,255,255,0.4)', Math.random()*3+1, -2 - Math.random()*2, -Math.random()));
+                    }
+                }
+            },
+
+            draw(ctx) {
+                ctx.save();
+                
+                // Efecto de deformación de salto y aterrizaje (Squash & Stretch)
+                let stretchX = 0;
+                let stretchY = 0;
+                if (this.isJumping) {
+                    stretchY = this.vy * 0.4;
+                    stretchX = -this.vy * 0.2;
+                } else {
+                    const bounce = Math.sin(this.runFrame) * 1.8;
+                    stretchY = bounce;
+                    stretchX = -bounce;
+                }
+
+                // Ajustar transformaciones desde la base de Mario
+                ctx.translate(this.x + this.width / 2, this.y + this.height);
+                ctx.scale(1 + stretchX / 100, 1 - stretchY / 100);
+
+                const legSwing = this.isJumping ? 0 : Math.sin(this.runFrame) * 8;
+
+                // 1. Zapatos Marrones (Estilo Mario)
+                ctx.fillStyle = '#78350f'; // Marrón oscuro
+                // Zapato izquierdo
+                ctx.beginPath();
+                ctx.ellipse(-10 + legSwing, -4, 9, 6, 0, 0, Math.PI * 2);
+                ctx.fill();
+                // Zapato derecho
+                ctx.beginPath();
+                ctx.ellipse(10 - legSwing, -4, 9, 6, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                // 2. Piernas (Pantalones de Overol Azul)
+                ctx.fillStyle = '#1d4ed8'; // Azul
+                ctx.beginPath();
+                ctx.roundRect(-15 + legSwing, -16, 9, 13, 3);
+                ctx.roundRect(6 - legSwing, -16, 9, 13, 3);
+                ctx.fill();
+
+                // 3. Cuerpo (Camisa Roja de base + Overol de Jean Azul)
+                ctx.fillStyle = '#ef4444'; // Camisa Roja
+                ctx.beginPath();
+                ctx.roundRect(-14, -36, 28, 21, 5);
+                ctx.fill();
+
+                ctx.fillStyle = '#1d4ed8'; // Pechera del overol azul
+                ctx.beginPath();
+                ctx.roundRect(-11, -32, 22, 17, [4, 4, 2, 2]);
+                ctx.fill();
+
+                // Tirantes del Overol
+                ctx.fillRect(-10, -36, 4, 6);
+                ctx.fillRect(6, -36, 4, 6);
+
+                // Botones Amarillos del Overol (Detalle emblemático)
+                ctx.fillStyle = '#fbbf24'; // Amarillo
+                ctx.beginPath();
+                ctx.arc(-8, -31, 2.2, 0, Math.PI * 2);
+                ctx.arc(8, -31, 2.2, 0, Math.PI * 2);
+                ctx.fill();
+
+                // 4. Cabeza
+                ctx.fillStyle = '#ffedd5'; // Color de piel melocotón pastel
+                ctx.beginPath();
+                ctx.arc(0, -45, 12, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Oreja
+                ctx.beginPath();
+                ctx.arc(-11, -44, 3.5, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Nariz prominente de Mario (¡Súper importante!)
+                ctx.beginPath();
+                ctx.arc(6, -45, 5.5, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Ojos Azules brillantes
+                ctx.fillStyle = '#0284c7';
+                ctx.beginPath();
+                ctx.arc(2, -48, 2, 0, Math.PI * 2);
+                ctx.fill();
+                // Destello blanco del ojo
+                ctx.fillStyle = '#ffffff';
+                ctx.beginPath();
+                ctx.arc(2.5, -48.5, 0.7, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Bigote Negro clásico (Curvado de Mario)
+                ctx.fillStyle = '#111827'; // Negro casi puro
+                ctx.beginPath();
+                ctx.roundRect(-2, -42, 11, 4, 2);
+                ctx.fill();
+                ctx.beginPath();
+                ctx.arc(0, -41, 2.5, 0, Math.PI * 2);
+                ctx.arc(4, -41, 2.5, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Patilla/Cabello castaño
+                ctx.fillStyle = '#78350f';
+                ctx.beginPath();
+                ctx.roundRect(-11, -48, 4, 6, 1);
+                ctx.fill();
+
+                // 5. Gorra de Mario (Roja con Visera y Placa Blanca "M")
+                ctx.fillStyle = '#ef4444'; // Rojo gorra
+                ctx.beginPath();
+                ctx.arc(0, -52, 11, Math.PI, 0); // Domo de la gorra
+                ctx.fill();
+                // Visera de la gorra
+                ctx.beginPath();
+                ctx.roundRect(-12, -54, 23, 3.5, 1.5);
+                ctx.fill();
+
+                // Círculo Blanco de la Gorra
+                ctx.fillStyle = '#ffffff';
+                ctx.beginPath();
+                ctx.arc(-2, -56, 4, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Letra "M" en Rojo brillante
+                ctx.fillStyle = '#ef4444';
+                ctx.font = 'bold 6.5px "Outfit", sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('M', -2, -55.5);
+
+                // 6. Brazo Izquierdo (Puño levantado en alto - icónico de salto/foto)
+                ctx.save();
+                ctx.fillStyle = '#ef4444'; // Manga roja
+                ctx.translate(-11, -32);
+                // Si salta se mantiene firme, al correr se balancea un poco
+                const armAngle = -Math.PI / 4.5 + (this.isJumping ? -0.2 : Math.sin(this.runFrame) * 0.15);
+                ctx.rotate(armAngle);
+                ctx.fillRect(-4.5, -11, 6.5, 13);
+                
+                // Guante Blanco
+                ctx.fillStyle = '#ffffff';
+                ctx.strokeStyle = '#d1d5db';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.arc(-1.2, -12, 4.8, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+                ctx.restore();
+
+                // 7. Brazo Derecho (Atrás/Pumping al correr)
+                ctx.save();
+                ctx.fillStyle = '#ef4444'; // Manga roja
+                ctx.translate(11, -32);
+                const rightArmAngle = Math.PI / 4 + (this.isJumping ? 0.3 : -Math.sin(this.runFrame) * 0.25);
+                ctx.rotate(rightArmAngle);
+                ctx.fillRect(-2, -2, 6.5, 13);
+
+                // Guante Blanco Derecho
+                ctx.fillStyle = '#ffffff';
+                ctx.strokeStyle = '#d1d5db';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.arc(1.2, 12, 4.8, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+                ctx.restore();
+
+                ctx.restore();
+            },
+
+            jump() {
+                if (!this.isJumping) {
+                    this.vy = this.jumpStrength;
+                    this.isJumping = true;
+                    playSound('jump');
+                    // Polvo al saltar impulsándose
+                    for (let i = 0; i < 6; i++) {
+                        particles.push(new Particle(this.x + this.width / 2, this.y + this.height, '#ffffff', Math.random()*4+2, (Math.random()-0.5)*6, -Math.random()*2 - 1));
+                    }
+                }
+            }
+        };
+
+        // OBSTÁCULOS
+        let obstacles = [];
+        let obstacleTimer = 0;
+        let minSpawnInterval = 75; // frames mínimos entre obstáculos
+
+        class Obstacle {
+            constructor() {
+                this.width = Math.random() * 20 + 25; // Anchos variados
+                this.height = Math.random() * 30 + 35; // Alturas variadas
+                this.x = VIEW_WIDTH + 50;
+                this.y = VIEW_HEIGHT - 90 - this.height;
+                this.speed = (5 + Math.random() * 2.5) * speedMultiplier;
+                
+                // Tipo de obstáculo visual: 1: Cristal, 2: Dron volador bajo, 3: Columna tecnológica
+                this.type = Math.random() < 0.35 ? 'dron' : (Math.random() < 0.5 ? 'cristal' : 'columna');
+                
+                if (this.type === 'dron') {
+                    // Drones flotan un poco más alto, para agacharse u obligar a saltar bien
+                    this.y -= Math.random() * 25 + 10;
+                    this.height = 30;
+                    this.width = 40;
+                }
+            }
+
+            update() {
+                this.x -= this.speed;
+            }
+
+            draw(ctx) {
+                ctx.save();
+                
+                if (this.type === 'cristal') {
+                    // Cristal Puntiagudo de Neón
+                    ctx.fillStyle = '#ec4899'; // Rosa neón
+                    ctx.beginPath();
+                    ctx.moveTo(this.x + this.width / 2, this.y);
+                    ctx.lineTo(this.x + this.width, this.y + this.height);
+                    ctx.lineTo(this.x, this.y + this.height);
+                    ctx.closePath();
+                    ctx.fill();
+
+                    // Brillo interno
+                    ctx.fillStyle = '#fbcfe8';
+                    ctx.beginPath();
+                    ctx.moveTo(this.x + this.width / 2, this.y + 5);
+                    ctx.lineTo(this.x + this.width - 8, this.y + this.height - 2);
+                    ctx.lineTo(this.x + 8, this.y + this.height - 2);
+                    ctx.closePath();
+                    ctx.fill();
+
+                } else if (this.type === 'columna') {
+                    // Bloque tecnológico/caja eléctrica
+                    ctx.fillStyle = '#f59e0b'; // Amarillo ambar
+                    ctx.beginPath();
+                    ctx.roundRect(this.x, this.y, this.width, this.height, 6);
+                    ctx.fill();
+
+                    // Franja de peligro negra/amarilla
+                    ctx.strokeStyle = '#1e293b';
+                    ctx.lineWidth = 4;
+                    ctx.beginPath();
+                    ctx.moveTo(this.x + 5, this.y + 10);
+                    ctx.lineTo(this.x + this.width - 5, this.y + this.height - 10);
+                    ctx.stroke();
+
+                } else if (this.type === 'dron') {
+                    // Dron volador con luz roja parpadeante
+                    const hover = Math.sin(Date.now() / 100) * 4;
+                    ctx.translate(0, hover);
+
+                    ctx.fillStyle = '#ef4444'; // Rojo alarma
+                    // Cuerpo del dron
+                    ctx.beginPath();
+                    ctx.roundRect(this.x, this.y, this.width, 15, 6);
+                    ctx.fill();
+
+                    // Alas laterales
+                    ctx.fillStyle = '#64748b';
+                    ctx.fillRect(this.x - 5, this.y + 3, 5, 4);
+                    ctx.fillRect(this.x + this.width, this.y + 3, 5, 4);
+
+                    // Luz parpadeante central
+                    ctx.fillStyle = Math.sin(Date.now() / 80) > 0 ? '#ffffff' : '#ef4444';
+                    ctx.beginPath();
+                    ctx.arc(this.x + this.width / 2, this.y + 7.5, 4, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+                ctx.restore();
+            }
+
+            // Detección de colisión perfecta usando caja envolvente
+            getBounds() {
+                return {
+                    left: this.x + 4,
+                    right: this.x + this.width - 4,
+                    top: this.y + 4,
+                    bottom: this.y + this.height - 2
+                };
+            }
+        }
+
+        // DECORACIÓN PARALLAX (Nubes, Estrellas, Colinas)
+        let stars = [];
+        let clouds = [];
+        let hills = [];
+
+        function initBackground() {
+            // Inicializar estrellas para la noche
+            stars = [];
+            for (let i = 0; i < 40; i++) {
+                stars.push({
+                    x: Math.random() * VIEW_WIDTH,
+                    y: Math.random() * (VIEW_HEIGHT - 200),
+                    size: Math.random() * 2 + 0.5,
+                    brightness: Math.random()
+                });
+            }
+
+            // Inicializar nubes
+            clouds = [];
+            for (let i = 0; i < 4; i++) {
+                clouds.push({
+                    x: Math.random() * VIEW_WIDTH,
+                    y: Math.random() * 120 + 30,
+                    size: Math.random() * 40 + 50,
+                    speed: (0.2 + Math.random() * 0.3)
+                });
+            }
+
+            // Colinas de fondo para dar profundidad
+            hills = [
+                { x: 0, speed: 0.1, colorDay: '#c2f0d0', colorNight: '#26214a', height: 180, amp: 20 },
+                { x: 400, speed: 0.1, colorDay: '#c2f0d0', colorNight: '#26214a', height: 200, amp: 30 },
+                { x: 200, speed: 0.25, colorDay: '#a3e2b4', colorNight: '#312a5c', height: 120, amp: 15 },
+                { x: 700, speed: 0.25, colorDay: '#a3e2b4', colorNight: '#312a5c', height: 130, amp: 25 }
+            ];
+        }
+
+        function updateBackground() {
+            // Animación de nubes
+            clouds.forEach(cloud => {
+                cloud.x -= cloud.speed * speedMultiplier;
+                if (cloud.x < -cloud.size * 2) {
+                    cloud.x = VIEW_WIDTH + cloud.size;
+                    cloud.y = Math.random() * 120 + 30;
+                }
+            });
+
+            // Animación de colinas
+            hills.forEach(hill => {
+                hill.x -= hill.speed * speedMultiplier;
+                if (hill.x < -400) {
+                    hill.x = VIEW_WIDTH;
+                }
+            });
+
+            // Animación parpadeo de estrellas
+            stars.forEach(star => {
+                star.brightness += (Math.random() - 0.5) * 0.1;
+                star.brightness = Math.max(0.1, Math.min(1, star.brightness));
+            });
+        }
+
+        // INTERPOLAR COLORES (Para el ciclo Día/Noche fluido)
+        function lerp(start, end, amt) {
+            return (1 - amt) * start + amt * end;
+        }
+
+        function updateCycleColors() {
+            theme.sky.r = lerp(theme.sky.r, theme.targetSky.r, theme.lerpFactor);
+            theme.sky.g = lerp(theme.sky.g, theme.targetSky.g, theme.lerpFactor);
+            theme.sky.b = lerp(theme.sky.b, theme.targetSky.b, theme.lerpFactor);
+
+            theme.ground.r = lerp(theme.ground.r, theme.targetGround.r, theme.lerpFactor);
+            theme.ground.g = lerp(theme.ground.g, theme.targetGround.g, theme.lerpFactor);
+            theme.ground.b = lerp(theme.ground.b, theme.targetGround.b, theme.lerpFactor);
+        }
+
+        // CAMBIO DE DÍA/NOCHE
+        function setCycle(cycle) {
+            currentCycle = cycle;
+            if (cycle === 'DAY') {
+                theme.targetSky = { r: 169, g: 222, b: 249 }; // Celeste pastel
+                theme.targetGround = { r: 110, g: 211, b: 141 }; // Verde claro pastel
+                showAlert('☀️ ¡Ha Amanecido! Fase de Día', 'text-amber-400');
+            } else {
+                theme.targetSky = { r: 15, g: 23, b: 42 }; // Azul Noche Oscuro
+                theme.targetGround = { r: 30, g: 41, b: 59 }; // Suelo noche gris azulado
+                showAlert('🌙 ¡Ha Anochecido! Fase de Noche', 'text-indigo-300');
+            }
+            playSound('levelup');
+        }
+
+        function showAlert(msg, colorClass) {
+            alertIcon.textContent = currentCycle === 'DAY' ? '☀️' : '🌙';
+            alertMessage.textContent = msg;
+            
+            alertBanner.className = "absolute top-4 left-1/2 -translate-x-1/2 bg-slate-900/90 border border-slate-700 px-6 py-2.5 rounded-full pointer-events-none opacity-100 transform translate-y-0 transition-all duration-500 flex items-center gap-2 " + colorClass;
+            
+            setTimeout(() => {
+                alertBanner.classList.add('opacity-0', '-translate-y-4');
+                alertBanner.classList.remove('opacity-100', 'translate-y-0');
+            }, 3000);
+        }
+
+        // DIBUJAR TODO EL ESCENARIO EN EL CANVAS
+        function drawScene() {
+            const skyColorStr = `rgb(${Math.round(theme.sky.r)}, ${Math.round(theme.sky.g)}, ${Math.round(theme.sky.b)})`;
+            const groundColorStr = `rgb(${Math.round(theme.ground.r)}, ${Math.round(theme.ground.g)}, ${Math.round(theme.ground.b)})`;
+
+            // 1. Limpiar Fondo con el color dinámico del Cielo
+            ctx.fillStyle = skyColorStr;
+            ctx.fillRect(0, 0, VIEW_WIDTH, VIEW_HEIGHT);
+
+            // 2. Dibujar Estrellas (sólo visibles o con opacidad en transición hacia la noche)
+            const nightIntensity = (15 - theme.sky.r) / (15 - 169); // 1 si es noche, 0 si es día
+            if (nightIntensity > 0.1) {
+                ctx.save();
+                ctx.globalAlpha = nightIntensity;
+                stars.forEach(star => {
+                    ctx.fillStyle = `rgba(255, 255, 255, ${star.brightness})`;
+                    ctx.beginPath();
+                    ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
+                    ctx.fill();
+                });
+                ctx.restore();
+            }
+
+            // 3. Sol o Luna (Giran u oscilan suavemente)
+            ctx.save();
+            if (currentCycle === 'DAY') {
+                // Sol radiante
+                ctx.fillStyle = '#fde047';
+                ctx.shadowColor = '#f59e0b';
+                ctx.shadowBlur = 30;
+                ctx.beginPath();
+                ctx.arc(VIEW_WIDTH - 150, 100, 45, 0, Math.PI * 2);
+                ctx.fill();
+            } else {
+                // Luna creciente mística con brillo suave
+                ctx.fillStyle = '#f1f5f9';
+                ctx.shadowColor = '#94a3b8';
+                ctx.shadowBlur = 20;
+                ctx.beginPath();
+                ctx.arc(VIEW_WIDTH - 150, 100, 35, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Sombra interna para crear arco creciente
+                ctx.shadowBlur = 0;
+                ctx.fillStyle = skyColorStr;
+                ctx.beginPath();
+                ctx.arc(VIEW_WIDTH - 135, 95, 33, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            ctx.restore();
+
+            // 4. Nubes suaves
+            ctx.save();
+            ctx.fillStyle = currentCycle === 'DAY' ? 'rgba(255, 255, 255, 0.75)' : 'rgba(255, 255, 255, 0.1)';
+            clouds.forEach(cloud => {
+                ctx.beginPath();
+                ctx.arc(cloud.x, cloud.y, cloud.size * 0.4, 0, Math.PI * 2);
+                ctx.arc(cloud.x + cloud.size * 0.3, cloud.y - cloud.size * 0.1, cloud.size * 0.5, 0, Math.PI * 2);
+                ctx.arc(cloud.x + cloud.size * 0.6, cloud.y, cloud.size * 0.4, 0, Math.PI * 2);
+                ctx.fill();
+            });
+            ctx.restore();
+
+            // 5. Colinas con efecto Parallax
+            hills.forEach(hill => {
+                ctx.fillStyle = currentCycle === 'DAY' ? hill.colorDay : hill.colorNight;
+                ctx.beginPath();
+                ctx.moveTo(hill.x - 200, VIEW_HEIGHT);
+                ctx.quadraticCurveTo(
+                    hill.x + 100, VIEW_HEIGHT - hill.height,
+                    hill.x + 400, VIEW_HEIGHT - 90
+                );
+                ctx.lineTo(VIEW_WIDTH + 400, VIEW_HEIGHT);
+                ctx.lineTo(-400, VIEW_HEIGHT);
+                ctx.closePath();
+                ctx.fill();
+            });
+
+            // 6. Suelo Tecnológico Sólido
+            ctx.fillStyle = groundColorStr;
+            ctx.fillRect(0, VIEW_HEIGHT - 90, VIEW_WIDTH, 90);
+
+            // Línea de frontera del suelo neon / cibernética
+            ctx.strokeStyle = currentCycle === 'DAY' ? '#059669' : '#475569';
+            ctx.lineWidth = 6;
+            ctx.beginPath();
+            ctx.moveTo(0, VIEW_HEIGHT - 90);
+            ctx.lineTo(VIEW_WIDTH, VIEW_HEIGHT - 90);
+            ctx.stroke();
+
+            // Detalles de rejilla cibernética en el suelo que se desplazan
+            ctx.strokeStyle = currentCycle === 'DAY' ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.05)';
+            ctx.lineWidth = 2;
+            const gridOffset = (Date.now() * 0.15 * speedMultiplier) % 80;
+            for (let x = VIEW_WIDTH - gridOffset; x > -100; x -= 80) {
+                ctx.beginPath();
+                ctx.moveTo(x, VIEW_HEIGHT - 90);
+                ctx.lineTo(x - 20, VIEW_HEIGHT);
+                ctx.stroke();
+            }
+
+            // 7. Renderizar Partículas
+            particles.forEach((p, idx) => {
+                p.update();
+                p.draw(ctx);
+                if (p.alpha <= 0) particles.splice(idx, 1);
+            });
+
+            // 8. Dibujar Personaje (Mario)
+            runner.draw(ctx);
+
+            // 9. Dibujar Obstáculos
+            obstacles.forEach(obs => {
+                obs.draw(ctx);
+            });
+        }
+
+        // BUCLE PRINCIPAL DEL JUEGO (Game Loop)
+        function gameLoop() {
+            if (gameState !== 'PLAYING') return;
+
+            // Incrementar puntuación pasiva
+            score += 0.15;
+            const displayScore = Math.floor(score);
+            scoreText.textContent = String(displayScore).padStart(4, '0');
+
+            // Actualizaciones físicas y de escenario
+            updateCycleColors();
+            updateBackground();
+            runner.update();
+
+            // CONTROL DE SPOTS Y DIFICULTAD CADA 100 PUNTOS
+            if (displayScore >= nextLevelScore) {
+                nextLevelScore += 100;
+                speedMultiplier += 0.15; // Aumento de velocidad de obstáculos
+                playSound('levelup');
+                showAlert(`¡Fase ${Math.floor(displayScore / 100) + 1}! Velocidad Aumentada`, 'text-red-400');
+            }
+
+            // CAMBIO DE DÍA/NOCHE CADA 200 PUNTOS
+            if (displayScore >= nextCycleScore) {
+                nextCycleScore += 200;
+                setCycle(currentCycle === 'DAY' ? 'NIGHT' : 'DAY');
+            }
+
+            // Generador dinámico de obstáculos con mayor frecuencia si hay más velocidad
+            obstacleTimer++;
+            const adjustedSpawnInterval = Math.max(minSpawnInterval, 130 - (speedMultiplier * 20));
+            if (obstacleTimer >= adjustedSpawnInterval) {
+                // Probabilidad de spawn aleatorio adaptativo
+                if (Math.random() < 0.6) {
+                    obstacles.push(new Obstacle());
+                    obstacleTimer = 0;
+                }
+            }
+
+            // Actualizar y comprobar colisiones en obstáculos
+            for (let i = obstacles.length - 1; i >= 0; i--) {
+                const obs = obstacles[i];
+                obs.update();
+
+                // Eliminar obstáculos fuera de la pantalla
+                if (obs.x < -100) {
+                    obstacles.splice(i, 1);
+                    continue;
+                }
+
+                // Colisión (AABB modificado para encajar con el volumen de Mario)
+                const runnerBox = {
+                    left: runner.x + 8,
+                    right: runner.x + runner.width - 8,
+                    top: runner.y + 4,
+                    bottom: runner.y + runner.height
+                };
+
+                const obsBox = obs.getBounds();
+
+                if (runnerBox.right > obsBox.left &&
+                    runnerBox.left < obsBox.right &&
+                    runnerBox.bottom > obsBox.top &&
+                    runnerBox.top < obsBox.bottom) {
+                    
+                    // ¡COLISIÓN DETECTADA!
+                    triggerGameOver();
+                    break;
+                }
+            }
+
+            // Renderizar la escena completa en pantalla
+            drawScene();
+
+            animationFrameId = requestAnimationFrame(gameLoop);
+        }
+
+        // CONTROL DE JUEGO TERMINADO
+        function triggerGameOver() {
+            gameState = 'GAMEOVER';
+            cancelAnimationFrame(animationFrameId);
+            playSound('hit');
+
+            // Guardar récord si se supera
+            const finalScoreVal = Math.floor(score);
+            if (finalScoreVal > bestScore) {
+                bestScore = finalScoreVal;
+                localStorage.setItem('eco_runner_best', bestScore);
+                bestScoreText.textContent = String(bestScore).padStart(4, '0');
+            }
+
+            // Detonar partículas de impacto
+            for (let i = 0; i < 25; i++) {
+                particles.push(new Particle(
+                    runner.x + runner.width / 2,
+                    runner.y + runner.height / 2,
+                    '#ef4444',
+                    Math.random() * 6 + 3,
+                    (Math.random() - 0.5) * 12,
+                    (Math.random() - 0.5) * 12 - 4
+                ));
+            }
+
+            // Redibujar escena final para mostrar explosión estática
+            drawScene();
+
+            // Configurar interfaz de Game Over
+            statusBadge.textContent = 'Juego Terminado';
+            statusBadge.className = "inline-block mb-3 px-3 py-1 bg-red-500/20 text-red-400 rounded-full border border-red-500/30 text-xs font-semibold tracking-wider uppercase";
+            
+            overlayTitle.textContent = '¡OH NO, MARIO!';
+            overlayMessage.textContent = 'Un obstáculo ha frenado la veloz aventura de tu héroe.';
+            
+            finalScore.textContent = finalScoreVal;
+            finalLevel.textContent = Math.floor(finalScoreVal / 100) + 1;
+            gameOverStats.classList.remove('hidden');
+            actionBtn.textContent = 'REINTENTAR';
+            
+            overlay.classList.remove('pointer-events-none', 'opacity-0');
+        }
+
+        // RESETEAR Y COMENZAR JUEGO
+        function startNewGame() {
+            // Reinicio de variables
+            score = 0;
+            speedMultiplier = 1;
+            nextLevelScore = 100;
+            nextCycleScore = 200;
+            obstacleTimer = 0;
+            obstacles = [];
+            particles = [];
+            
+            runner.y = VIEW_HEIGHT - 90 - runner.height;
+            runner.vy = 0;
+            runner.isJumping = false;
+            
+            currentCycle = 'DAY';
+            theme.sky = { r: 169, g: 222, b: 249 };
+            theme.ground = { r: 110, g: 211, b: 141 };
+            theme.targetSky = { r: 169, g: 222, b: 249 };
+            theme.targetGround = { r: 110, g: 211, b: 141 };
+
+            initBackground();
+
+            gameState = 'PLAYING';
+            overlay.classList.add('pointer-events-none', 'opacity-0');
+            
+            // Reanudar contexto de audio de forma segura
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+
+            // Iniciar bucle
+            gameLoop();
+        }
+
+        // EVENTOS DE CONTROL (Soporte multiplataforma)
+        
+        // Acción del botón principal en Overlay
+        actionBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            startNewGame();
+        });
+
+        // Saltar tocando el Canvas/Pantalla
+        function handleJumpTrigger(e) {
+            if (gameState === 'PLAYING') {
+                e.preventDefault();
+                runner.jump();
+            }
+        }
+
+        // Listeners táctiles y clics en el juego
+        canvas.addEventListener('mousedown', handleJumpTrigger);
+        canvas.addEventListener('touchstart', handleJumpTrigger, { passive: false });
+
+        // Saltar con el teclado
+        window.addEventListener('keydown', (e) => {
+            if (e.code === 'Space' || e.code === 'ArrowUp') {
+                if (gameState === 'PLAYING') {
+                    e.preventDefault();
+                    runner.jump();
+                } else if (gameState === 'START' || gameState === 'GAMEOVER') {
+                    e.preventDefault();
+                    startNewGame();
+                }
+            }
+        });
+
+        // Asegurar escalado del Canvas manteniendo relación de aspecto
+        function resizeCanvas() {
+            canvas.width = VIEW_WIDTH;
+            canvas.height = VIEW_HEIGHT;
+            drawScene();
+        }
+
+        // Inicialización tras cargar
+        window.addEventListener('load', () => {
+            resizeCanvas();
+            initBackground();
+            drawScene();
+        });
+
+        window.addEventListener('resize', resizeCanvas);
+    </script>
+</body>
+</html>
